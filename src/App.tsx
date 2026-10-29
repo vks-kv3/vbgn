@@ -14,13 +14,20 @@ import {
   Compass,
   Smile,
   Copy,
-  Check
+  Check,
+  KeyRound,
+  Eye,
+  EyeOff,
+  ChevronDown
 } from "lucide-react";
 
 import { SPEECH_PRESETS, TTS_VOICES, TTS_STYLES, LOADING_PHRASES } from "./data";
 import { SpeechHistoryItem } from "./types";
 import AudioPlayer from "./components/AudioPlayer";
 import { getHistory, saveHistoryItem, deleteHistoryItemFromDb, clearAllHistoryFromDb } from "./db";
+import { generateSpeech } from "./tts";
+
+const API_KEY_STORAGE = "gemini_api_key";
 
 export default function App() {
   const [text, setText] = useState<string>("");
@@ -38,6 +45,33 @@ export default function App() {
   const [history, setHistory] = useState<SpeechHistoryItem[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Gemini API key, entered by each visitor and kept only in their own browser
+  const [apiKey, setApiKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem(API_KEY_STORAGE) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [showKey, setShowKey] = useState<boolean>(false);
+  const [showKeyPanel, setShowKeyPanel] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem(API_KEY_STORAGE);
+    } catch {
+      return true;
+    }
+  });
+
+  const handleSaveKey = (value: string) => {
+    setApiKey(value);
+    try {
+      if (value.trim()) localStorage.setItem(API_KEY_STORAGE, value.trim());
+      else localStorage.removeItem(API_KEY_STORAGE);
+    } catch {
+      /* storage unavailable: keep key in memory only */
+    }
+  };
 
   // Cycle loading phrases during TTS generation
   useEffect(() => {
@@ -90,6 +124,13 @@ export default function App() {
       return;
     }
 
+    if (!apiKey.trim()) {
+      triggerToast("Vui lòng nhập Gemini API key trước khi tạo giọng nói.");
+      setShowKeyPanel(true);
+      document.getElementById("api-key-card")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
     setIsLoading(true);
     setLoadingPhraseIndex(0);
     setAudioUrl(null);
@@ -98,31 +139,12 @@ export default function App() {
     const activeStyle = TTS_STYLES.find((s) => s.id === selectedStyle);
 
     try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: text,
-          voice: selectedVoice,
-          style: selectedStyle,
-        }),
+      const generatedAudioUri = await generateSpeech({
+        apiKey: apiKey.trim(),
+        text,
+        voice: selectedVoice,
+        style: selectedStyle,
       });
-
-      const contentType = response.headers.get("content-type");
-      let data: any = {};
-      
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const rawText = await response.text();
-        throw new Error(rawText.substring(0, 200) || "Máy chủ phản hồi định dạng không hợp lệ.");
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "Không thể chuyển đổi văn bản thành giọng nói.");
-      }
-
-      const generatedAudioUri = `data:${data.format};base64,${data.audio}`;
       setAudioUrl(generatedAudioUri);
 
       // Generate a title based on first words of text
@@ -247,7 +269,92 @@ export default function App() {
           
           {/* LEFT SIDEBAR: Presets & Configurations (Col span 4) */}
           <div className="lg:col-span-4 flex flex-col gap-6 w-full">
-            
+
+            {/* Gemini API key card */}
+            <motion.div
+              id="api-key-card"
+              initial={{ opacity: 0, x: -15 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className={`bg-vintage-100 border rounded-xl p-6 shadow-sm ${
+                apiKey.trim() ? "border-vintage-300" : "border-vintage-600 ring-2 ring-vintage-400/40"
+              }`}
+            >
+              <button
+                onClick={() => setShowKeyPanel((v) => !v)}
+                className="w-full flex items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-vintage-700" />
+                  <h2 className="font-serif font-bold text-base text-vintage-900">Gemini API Key</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded-full border ${
+                      apiKey.trim()
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {apiKey.trim() ? "Đã lưu" : "Chưa có"}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-vintage-600 transition-transform ${showKeyPanel ? "rotate-180" : ""}`}
+                  />
+                </div>
+              </button>
+
+              {showKeyPanel && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <p className="text-xs text-vintage-600 leading-relaxed">
+                    Ứng dụng dùng key Gemini của chính bạn. Key chỉ được lưu trong trình duyệt này và gửi thẳng tới
+                    Google, không đi qua máy chủ nào khác.
+                  </p>
+                  <div className="relative">
+                    <input
+                      type={showKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => handleSaveKey(e.target.value)}
+                      placeholder="Dán API key bắt đầu bằng AIza..."
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="w-full bg-vintage-50 border-2 border-vintage-200 focus:border-vintage-500 rounded-xl py-2.5 pl-3 pr-10 font-mono text-xs text-vintage-900 placeholder-vintage-400 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => setShowKey((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-vintage-500 hover:text-vintage-800"
+                      title={showKey ? "Ẩn key" : "Hiện key"}
+                      type="button"
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-vintage-700 underline underline-offset-2 hover:text-vintage-900"
+                    >
+                      Lấy key miễn phí tại Google AI Studio →
+                    </a>
+                    {apiKey && (
+                      <button
+                        onClick={() => {
+                          handleSaveKey("");
+                          triggerToast("Đã xóa API key khỏi trình duyệt.");
+                        }}
+                        className="text-red-700 hover:underline"
+                        type="button"
+                      >
+                        Xóa key
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
             {/* Presets Card */}
             <motion.div
               initial={{ opacity: 0, x: -15 }}
