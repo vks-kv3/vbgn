@@ -1,0 +1,6 @@
+{
+  "name": "Chuyển Văn Bản Thành Giọng Nói",
+  "description": "Ứng dụng chuyển đổi văn bản thành giọng nói giọng nam miền Bắc trầm ấm, sâu lắng, dạt dào cảm xúc hoài niệm xưa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

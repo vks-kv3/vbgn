@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", "Lora", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-vintage-50: #F9F6F2;
+  --color-vintage-100: #F2EDE4;
+  --color-vintage-200: #EAE5DE;
+  --color-vintage-300: #D1CAC0;
+  --color-vintage-400: #B7AFA4;
+  --color-vintage-500: #8B7E66;
+  --color-vintage-600: #746853;
+  --color-vintage-700: #4A443D;
+  --color-vintage-800: #2D2A26;
+  --color-vintage-900: #1C1A18;
+  --color-vintage-950: #0F0E0D;
+}
+
+@layer utilities {
+  /* Wave animation for loading and speech playing */
+  @keyframes wave {
+    0%, 100% {
+      transform: scaleY(0.3);
+    }
+    50% {
+      transform: scaleY(1.0);
+    }
+  }
+
+  /* Rotation for vinyl/cassette spool */
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+  
+  .asymmetric-border {
+    border-left: 1px solid #D1CAC0;
+    border-bottom: 1px solid #D1CAC0;
+  }
+}
